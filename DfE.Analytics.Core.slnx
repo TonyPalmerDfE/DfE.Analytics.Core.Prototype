@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="DfE.Analytics.Core.BigQuery/DfE.Analytics.Core.BigQuery.csproj" Id="d1a3a380-0c26-443a-898f-9d808267736e" />
+  <Project Path="DfE.Analytics.Core.Consumer.Mvc/DfE.Analytics.Core.Consumer.Mvc.csproj" Id="e9b11ced-0461-4131-9a9f-63beca47ad5e" />
   <Project Path="DfE.Analytics.Core/DfE.Analytics.Core.csproj" />
 </Solution>

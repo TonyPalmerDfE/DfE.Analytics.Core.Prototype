@@ -1,0 +1,11 @@
+﻿@using DfE.Analytics.Core.Consumer.Mvc.Controllers
+@model SchoolVm
+
+<h2>@Model.Name</h2>
+
+<p><strong>URN:</strong> @Model.Urn</p>
+<p><strong>Phase:</strong> @Model.Phase</p>
+
+<a asp-action="External" asp-route-urn="@Model.Urn" class="btn btn-primary">
+    Visit External Website
+</a>

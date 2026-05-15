@@ -21,26 +21,24 @@ dotnet add package DfE.Analytics.Core
 
 Register the core:
 ```
-builder.Services.AddAnalyticsCore();
+builder.Services.AddDfEAnalyticsCore();
 ```
 
 ## Define an event
-Create a data record:
 ```
-public record EstablishmentRetrievedData(int Id, string Name)
-    : IAnalyticsEventData;
+public record EstablishmentRetrievedData(int Id, string Name) : IAnalyticsEventData;
 ```
 Create the event:
 ```
-public record EstablishmentRetrievedEvent(EstablishmentRetrievedData Data)
-    : AnalyticsEvent<EstablishmentRetrievedData>("establishment_retrieved", Data);
+EstablishmentRetrievedData data = new(123, "Test Establishment");
+AnalyticsEvent evt = new("event_name", data);
 ```
 
 ## Track an event
 Inject `IAnalyticsTracker` and call:
 ```
 await tracker.TrackAsync(
-    new EstablishmentRetrievedEvent(
+    new AnalyticsEvent("event_name",
         new EstablishmentRetrievedData(est.Id, est.Name)
     )
 );

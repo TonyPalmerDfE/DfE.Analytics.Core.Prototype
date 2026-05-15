@@ -69,9 +69,6 @@ namespace DfE.Analytics.Core.Tracking
                 {
                     try
                     {
-                        if (!destinations.Any())
-                            continue;
-
                         await destination.TrackAsync(evt, stoppingToken);
                     }
                     catch (Exception ex)
