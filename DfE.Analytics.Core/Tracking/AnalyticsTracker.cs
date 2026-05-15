@@ -2,7 +2,11 @@
 using DfE.Analytics.Core.Correlation;
 using DfE.Analytics.Core.Events;
 using DfE.Analytics.Core.Options;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Threading.Channels;
 
 namespace DfE.Analytics.Core.Tracking
 {
@@ -15,33 +19,73 @@ namespace DfE.Analytics.Core.Tracking
     /// typically used to centralize analytics event processing within an application.</remarks>
     public class AnalyticsTracker : IAnalyticsTracker
     {
-        private readonly IEnumerable<IAnalyticsEventDestination> _destinations;
+        private readonly ChannelWriter<AnalyticsEvent> _writer;
         private readonly IEnumerable<IAnalyticsEnricher> _enrichers;
         private readonly AnalyticsCorrelationContext _context;
         private readonly AnalyticsOptions _options;
 
         public AnalyticsTracker(
-            IEnumerable<IAnalyticsEventDestination> destinations,
+            ChannelWriter<AnalyticsEvent> writer,
             IEnumerable<IAnalyticsEnricher> enrichers,
             AnalyticsCorrelationContext context,
             IOptions<AnalyticsOptions> options)
         {
-            _destinations = destinations;
+            _writer = writer;
             _enrichers = enrichers;
             _context = context;
             _options = options.Value;
         }
 
-        public async Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
+        public Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
         {
             if (!_options.Enabled)
-                return;
+                return Task.CompletedTask;
 
             foreach (IAnalyticsEnricher enricher in _enrichers)
                 enricher.Enrich(evt, _context);
 
-            foreach (IAnalyticsEventDestination dest in _destinations)
-                await dest.TrackAsync(evt, cancellationToken);
+            _writer.TryWrite(evt);
+            return Task.CompletedTask;
+        }
+    }
+
+    public class AnalyticsQueueProcessor : BackgroundService
+    {
+        private readonly ChannelReader<AnalyticsEvent> _reader;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<AnalyticsQueueProcessor> _logger;
+
+        public AnalyticsQueueProcessor(
+            ChannelReader<AnalyticsEvent> reader,
+            IServiceScopeFactory scopeFactory,
+            ILogger<AnalyticsQueueProcessor> logger)
+        {
+            _reader = reader;
+            _scopeFactory = scopeFactory;
+            _logger = logger;
+        }
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            await foreach (AnalyticsEvent evt in _reader.ReadAllAsync(stoppingToken))
+            {
+                using var scope = _scopeFactory.CreateScope();
+                IEnumerable<IAnalyticsEventDestination> destinations = scope.ServiceProvider.GetServices<IAnalyticsEventDestination>();
+
+                foreach (IAnalyticsEventDestination destination in destinations)
+                {
+                    try
+                    {
+                        await destination.TrackAsync(evt, stoppingToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            "Failed to track analytics event '{EventName}' to destination '{DestinationType}'",
+                            evt.EventName, destination.GetType().Name);
+                    }
+                }
+            }
         }
     }
 }

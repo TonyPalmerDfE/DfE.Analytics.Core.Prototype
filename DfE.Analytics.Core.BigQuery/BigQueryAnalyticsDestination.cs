@@ -21,7 +21,7 @@ public class BigQueryAnalyticsDestination : IAnalyticsEventDestination
 
     public async Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
     {
-        var row = new BigQueryInsertRow
+        BigQueryInsertRow row = new()
         {
             { "event_name", evt.EventName },
             { "timestamp", evt.Timestamp },
