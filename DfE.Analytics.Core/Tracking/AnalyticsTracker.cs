@@ -1,7 +1,6 @@
 ﻿using DfE.Analytics.Core.Abstractions;
 using DfE.Analytics.Core.Correlation;
 using DfE.Analytics.Core.Events;
-using DfE.Analytics.Core.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -22,25 +21,19 @@ namespace DfE.Analytics.Core.Tracking
         private readonly ChannelWriter<AnalyticsEvent> _writer;
         private readonly IEnumerable<IAnalyticsEnricher> _enrichers;
         private readonly AnalyticsCorrelationContext _context;
-        private readonly AnalyticsOptions _options;
 
         public AnalyticsTracker(
             ChannelWriter<AnalyticsEvent> writer,
             IEnumerable<IAnalyticsEnricher> enrichers,
-            AnalyticsCorrelationContext context,
-            IOptions<AnalyticsOptions> options)
+            AnalyticsCorrelationContext context)
         {
             _writer = writer;
             _enrichers = enrichers;
             _context = context;
-            _options = options.Value;
         }
 
         public Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
         {
-            if (!_options.Enabled)
-                return Task.CompletedTask;
-
             foreach (IAnalyticsEnricher enricher in _enrichers)
                 enricher.Enrich(evt, _context);
 
@@ -76,6 +69,9 @@ namespace DfE.Analytics.Core.Tracking
                 {
                     try
                     {
+                        if (!destinations.Any())
+                            continue;
+
                         await destination.TrackAsync(evt, stoppingToken);
                     }
                     catch (Exception ex)

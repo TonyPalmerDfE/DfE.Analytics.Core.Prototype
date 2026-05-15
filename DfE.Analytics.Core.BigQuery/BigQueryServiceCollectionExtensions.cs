@@ -2,50 +2,42 @@
 using Google.Cloud.BigQuery.V2;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace DfE.Analytics.Core.BigQuery;
 
 public static class BigQueryServiceCollectionExtensions
 {
     public static IServiceCollection AddBigQueryAnalyticsDestination(
-    this IServiceCollection services,
-    IConfiguration configuration)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        var section = configuration.GetSection("Analytics:Destinations:BigQuery");
-        var enabled = section.GetValue<bool>("Enabled");
+        IConfigurationSection section = configuration.GetSection(BigQueryAnalyticsOptions.SectionName);
+        BigQueryAnalyticsOptions options = new();
+        section.Bind(options);
 
-        // 1. If not enabled -> do nothing
-        if (!enabled)
+        if (!options.Enabled)
             return services;
 
-        // 2. If enabled but missing required config -> fallback to console preview
-        var projectId = section.GetValue<string>("ProjectId");
-        var dataset = section.GetValue<string>("Dataset");
-        var table = section.GetValue<string>("Table");
-
-        var missingConfig = string.IsNullOrWhiteSpace(projectId)
-                         || string.IsNullOrWhiteSpace(dataset)
-                         || string.IsNullOrWhiteSpace(table);
+        bool missingConfig =
+            string.IsNullOrWhiteSpace(options.ProjectId) ||
+            string.IsNullOrWhiteSpace(options.Dataset) ||
+            string.IsNullOrWhiteSpace(options.Table);
 
         if (missingConfig)
         {
-            services.AddScoped<IAnalyticsEventDestination, BigQueryConsolePreviewDestination>();
-            return services;
+            throw new InvalidOperationException(
+                "BigQuery analytics is enabled, but required configuration values are missing or empty.");
         }
 
-        // 3. Fully configured -> register real BigQuery destination
-        //services.Configure<BigQueryAnalyticsOptions>(section);
+        services.Configure<BigQueryAnalyticsOptions>(opt =>
+            configuration.GetSection(BigQueryAnalyticsOptions.SectionName).Bind(opt));
 
         services.AddSingleton(provider =>
-        {
-            var opts = provider.GetRequiredService<IOptions<BigQueryAnalyticsOptions>>().Value;
-            return BigQueryClient.Create(opts.ProjectId);
-        });
+            BigQueryClient.Create(options.ProjectId));
 
         services.AddScoped<IAnalyticsEventDestination, BigQueryAnalyticsDestination>();
 
         return services;
     }
-
 }
+

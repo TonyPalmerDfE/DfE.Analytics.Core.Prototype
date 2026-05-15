@@ -1,7 +1,6 @@
 ﻿using DfE.Analytics.Core.Abstractions;
 using DfE.Analytics.Core.Correlation;
 using DfE.Analytics.Core.Events;
-using DfE.Analytics.Core.Options;
 using DfE.Analytics.Core.Tracking;
 using Microsoft.Extensions.DependencyInjection;
 using System.Threading.Channels;
@@ -10,13 +9,8 @@ namespace DfE.Analytics.Core.Extensions
 {
     public static class AnalyticsServiceCollectionExtensions
     {
-        public static IServiceCollection AddDfEAnalyticsCore(
-            this IServiceCollection services,
-            Action<AnalyticsOptions>? configure = null)
+        public static IServiceCollection AddDfEAnalyticsCore(this IServiceCollection services)
         {
-            if (configure is not null)
-                services.Configure(configure);
-
             Channel<AnalyticsEvent> channel = Channel.CreateBounded<AnalyticsEvent>(new BoundedChannelOptions(10000)
             {
                 FullMode = BoundedChannelFullMode.DropOldest
@@ -27,7 +21,6 @@ namespace DfE.Analytics.Core.Extensions
 
             services.AddScoped<AnalyticsCorrelationContext>();
             services.AddScoped<IAnalyticsTracker, AnalyticsTracker>();
-
             services.AddHostedService<AnalyticsQueueProcessor>();
 
             return services;
