@@ -11,8 +11,6 @@ Gives you a consistent way to:
 It does not dictate:
 - What events you track
 - Where events are sent
-- What framework you use
-- How your domain is structured
 
 ## Install
 ```

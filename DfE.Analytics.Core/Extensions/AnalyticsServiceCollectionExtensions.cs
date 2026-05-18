@@ -19,9 +19,11 @@ namespace DfE.Analytics.Core.Extensions
             services.AddSingleton(channel.Writer);
             services.AddSingleton(channel.Reader);
 
+            services.AddSingleton<IAnalyticsPipeline, ChannelAnalyticsPipeline>();
+            services.AddHostedService<AnalyticsQueueProcessor>();
+
             services.AddScoped<AnalyticsCorrelationContext>(); 
             services.AddScoped<IAnalyticsTracker, AnalyticsTracker>();
-            services.AddHostedService<AnalyticsQueueProcessor>();
 
             return services;
         }

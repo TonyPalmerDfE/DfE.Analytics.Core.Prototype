@@ -18,27 +18,26 @@ namespace DfE.Analytics.Core.Tracking
     /// typically used to centralize analytics event processing within an application.</remarks>
     public class AnalyticsTracker : IAnalyticsTracker
     {
-        private readonly ChannelWriter<AnalyticsEvent> _writer;
+        private readonly IAnalyticsPipeline _pipeline;
         private readonly IEnumerable<IAnalyticsEnricher> _enrichers;
         private readonly AnalyticsCorrelationContext _context;
 
         public AnalyticsTracker(
-            ChannelWriter<AnalyticsEvent> writer,
+            IAnalyticsPipeline pipeline,
             IEnumerable<IAnalyticsEnricher> enrichers,
             AnalyticsCorrelationContext context)
         {
-            _writer = writer;
+            _pipeline = pipeline;
             _enrichers = enrichers;
             _context = context;
         }
 
-        public Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
+        public async Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
         {
             foreach (IAnalyticsEnricher enricher in _enrichers)
                 enricher.Enrich(evt, _context);
 
-            _writer.TryWrite(evt);
-            return Task.CompletedTask;
+            await _pipeline.ProcessAsync(evt, cancellationToken);
         }
     }
 
