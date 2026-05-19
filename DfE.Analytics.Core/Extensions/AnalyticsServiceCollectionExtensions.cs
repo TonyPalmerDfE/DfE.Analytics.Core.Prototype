@@ -1,5 +1,5 @@
 ﻿using DfE.Analytics.Core.Abstractions;
-using DfE.Analytics.Core.Correlation;
+using DfE.Analytics.Core.Context;
 using DfE.Analytics.Core.Events;
 using DfE.Analytics.Core.Tracking;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,19 +11,32 @@ namespace DfE.Analytics.Core.Extensions
     {
         public static IServiceCollection AddDfEAnalyticsCore(this IServiceCollection services)
         {
-            Channel<AnalyticsEvent> channel = Channel.CreateBounded<AnalyticsEvent>(new BoundedChannelOptions(10000)
-            {
-                FullMode = BoundedChannelFullMode.DropOldest
-            });
+            services.AddScoped<AnalyticsContext>();
+            services.AddScoped<IAnalyticsClient, AnalyticsClient>();
+
+            return services;
+        }
+
+        public static IServiceCollection AddDfEAnalyticsDefaultDispatcher(this IServiceCollection services)
+        {
+            Channel<AnalyticsEventEnvelope> channel = Channel.CreateBounded<AnalyticsEventEnvelope>(
+                new BoundedChannelOptions(10000)
+                {
+                    FullMode = BoundedChannelFullMode.DropOldest
+                });
 
             services.AddSingleton(channel.Writer);
             services.AddSingleton(channel.Reader);
 
-            services.AddSingleton<IAnalyticsPipeline, ChannelAnalyticsPipeline>();
-            services.AddHostedService<AnalyticsQueueProcessor>();
+            services.AddSingleton<IAnalyticsDispatcher, ChannelAnalyticsDispatcher>();
+            services.AddHostedService<AnalyticsBackgroundWorker>();
 
-            services.AddScoped<AnalyticsCorrelationContext>(); 
-            services.AddScoped<IAnalyticsTracker, AnalyticsTracker>();
+            return services;
+        }
+
+        public static IServiceCollection AddDfEAnalyticsDefaultExporter(this IServiceCollection services)
+        {
+            services.AddScoped<IAnalyticsExporter, ConsoleAnalyticsExporter>();
 
             return services;
         }
@@ -36,9 +49,9 @@ namespace DfE.Analytics.Core.Extensions
         }
 
         public static IServiceCollection AddAnalyticsDestination<T>(this IServiceCollection services)
-            where T : class, IAnalyticsEventDestination
+            where T : class, IAnalyticsExporter
         {
-            services.AddScoped<IAnalyticsEventDestination, T>();
+            services.AddScoped<IAnalyticsExporter, T>();
             return services;
         }
     }

@@ -1,5 +1,5 @@
 ﻿using DfE.Analytics.Core.Abstractions;
-using DfE.Analytics.Core.Correlation;
+using DfE.Analytics.Core.Context;
 using DfE.Analytics.Core.Events;
 using System.Text.Json;
 
@@ -18,24 +18,26 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Analytics
     // ENRICHER
     public class UserEnricher : IAnalyticsEnricher
     {
-        public void Enrich(AnalyticsEvent evt, AnalyticsCorrelationContext context)
+        public Task EnrichAsync(AnalyticsEventEnvelope evt, AnalyticsContext context)
         {
             context.CorrelationId = context.CorrelationId ?? Guid.NewGuid().ToString();
 
             evt.CorrelationId = context.CorrelationId;
             evt.WithMetadata("Environment", "Local");
+
+            return Task.CompletedTask;
         }
     }
 
     // DESTINATION
-    public class DebugConsoleDestination : IAnalyticsEventDestination
+    public class DebugConsoleDestination : IAnalyticsExporter
     {
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
         };
 
-        public Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
+        public Task TrackAsync(AnalyticsEventEnvelope evt, CancellationToken cancellationToken = default)
         {
             Console.WriteLine("========== ANALYTICS EVENT ==========");
             Console.WriteLine($"EventName: {evt.EventName}");
@@ -60,7 +62,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Analytics
             _next = next;
         }
 
-        public async Task Invoke(HttpContext context, AnalyticsCorrelationContext correlation)
+        public async Task Invoke(HttpContext context, AnalyticsContext correlation)
         {
             const string key = "CorrelationId";
 

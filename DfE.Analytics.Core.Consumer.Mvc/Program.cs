@@ -7,7 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddDfEAnalyticsCore()
-    .AddAnalyticsDestination<DebugConsoleDestination>()
+    .AddDfEAnalyticsDefaultDispatcher()
+    .AddDfEAnalyticsDefaultExporter()
+    //.AddAnalyticsDestination<DebugConsoleDestination>()
     .AddAnalyticsEnricher<UserEnricher>();
 
 builder.Services.AddSession();

@@ -35,7 +35,7 @@ public static class BigQueryServiceCollectionExtensions
         services.AddSingleton(provider =>
             BigQueryClient.Create(options.ProjectId));
 
-        services.AddScoped<IAnalyticsEventDestination, BigQueryAnalyticsDestination>();
+        services.AddScoped<IAnalyticsExporter, BigQueryAnalyticsDestination>();
 
         return services;
     }

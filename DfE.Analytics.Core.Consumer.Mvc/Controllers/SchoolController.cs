@@ -8,9 +8,9 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
 
     public class SchoolsController : Controller
     {
-        private readonly IAnalyticsTracker _tracker;
+        private readonly IAnalyticsClient _tracker;
 
-        public SchoolsController(IAnalyticsTracker tracker)
+        public SchoolsController(IAnalyticsClient tracker)
         {
             _tracker = tracker;
         }
@@ -33,7 +33,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
                 .ToList();
 
             await _tracker.TrackAsync(
-                new AnalyticsEvent("school_search_performed",
+                new AnalyticsEventEnvelope("school_search_performed",
                     new SchoolSearchData(searchTerm, results.Count)
                 )
             );
@@ -53,7 +53,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
                 .ToList();
 
             await _tracker.TrackAsync(
-                new AnalyticsEvent("school_filter_performed",
+                new AnalyticsEventEnvelope("school_filter_performed",
                     new FilterAppliedData(filterName, selectedValue, results.Count)
                 )
             );
@@ -72,7 +72,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
                 return NotFound();
 
             await _tracker.TrackAsync(
-                new AnalyticsEvent("school_details_viewed",
+                new AnalyticsEventEnvelope("school_details_viewed",
                     new SchoolDetailsViewedData(school.Urn, school.Name, school.Phase)
                 )
                 .WithMetadata("journey", "parent_discovery")
@@ -94,7 +94,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
             var url = $"https://www.google.com/search?q={school.Name.Replace(" ", "+")}";
 
             await _tracker.TrackAsync(
-                new AnalyticsEvent("external_website_clicked",
+                new AnalyticsEventEnvelope("external_website_clicked",
                     new ExternalWebsiteClickedData(school.Urn, url)
                 )
             );

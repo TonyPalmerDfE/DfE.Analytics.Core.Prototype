@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace DfE.Analytics.Core.BigQuery;
 
-public class BigQueryAnalyticsDestination : IAnalyticsEventDestination
+public class BigQueryAnalyticsDestination : IAnalyticsExporter
 {
     private readonly BigQueryClient _client;
     private readonly BigQueryAnalyticsOptions _options;
@@ -19,7 +19,7 @@ public class BigQueryAnalyticsDestination : IAnalyticsEventDestination
         _options = options.Value;
     }
 
-    public async Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
+    public async Task TrackAsync(AnalyticsEventEnvelope evt, CancellationToken cancellationToken = default)
     {
         BigQueryInsertRow row = new()
         {
