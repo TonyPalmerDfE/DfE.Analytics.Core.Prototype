@@ -48,7 +48,7 @@ namespace DfE.Analytics.Core.Extensions
             return services;
         }
 
-        public static IServiceCollection AddAnalyticsDestination<T>(this IServiceCollection services)
+        public static IServiceCollection AddAnalyticsExporter<T>(this IServiceCollection services)
             where T : class, IAnalyticsExporter
         {
             services.AddScoped<IAnalyticsExporter, T>();
