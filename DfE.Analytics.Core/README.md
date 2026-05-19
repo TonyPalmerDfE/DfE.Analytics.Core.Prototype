@@ -1,16 +1,14 @@
-﻿# DfE.Analytics.Core
+﻿# DfE Analytics Core
 A lightweight, framework‑agnostic library for emitting structured analytics events across DfE services.
 
-## What this library does
-Gives you a consistent way to:
-- Emit structured analytics events
-- Add metadata automatically via enrichers
-- Correlate events across layers and services
-- Send events to any destination you choose
+## Overview
+The system is built around four key concepts:
+- <b>Analytics Events</b> — A named event with strongly typed data and optional metadata.
+- <b>Enrichers</b> — Components that add contextual information (e.g., correlation IDs) before an event is dispatched.
+- <b>Dispatchers</b> — Responsible for sending events to a background channel.
+- <b>Exporters</b> — Final destinations that process or forward events (e.g., console, BigQuery, Azure, Storage).
 
-It does not dictate:
-- What events you track
-- Where events are sent
+If defaults are enabled, events are written to a channel, then processed by a hosted background worker to avoid blocking application code.
 
 ## Install
 ```
@@ -22,31 +20,38 @@ Register the core:
 builder.Services.AddDfEAnalyticsCore();
 ```
 
-## Define an event
+Add the default channel-based dispatcher:
 ```
-public record EstablishmentRetrievedData(int Id, string Name) : IAnalyticsEventData;
-```
-Create the event:
-```
-EstablishmentRetrievedData data = new(123, "Test Establishment");
-AnalyticsEvent evt = new("event_name", data);
+builder.Services.AddDfEAnalyticsDefaultDispatcher();
 ```
 
-## Track an event
-Inject `IAnalyticsTracker` and call:
+Add the default console exporter:
 ```
-await tracker.TrackAsync(
-    new AnalyticsEvent("event_name",
-        new EstablishmentRetrievedData(est.Id, est.Name)
-    )
-);
+builder.Services.AddDfEAnalyticsDefaultExporter();
 ```
 
-Aim is for it work in:
-- APIs
-- MVC
-- Domain services
-- Background workers
+(Optional) Add your own custom enrichers or exporters:
+```
+services.AddAnalyticsEnricher<IAnalyticsEnricher, MyEnricher>();
+services.AddAnalyticsExporter<IAnalyticsExporter, MyExporter>();
+```
+
+
+## Usage
+
+1. Define your event data:
+```
+public record UserSignedInData(string UserId) : IAnalyticsEventData;
+```
+
+2. Create and track an event
+```
+var evt = new AnalyticsEventEnvelope("user_signed_in", new UserSignedInData("12345"))
+    .WithMetadata("Source", "web_application");
+
+await analyticsClient.TrackAsync(evt);
+```
+
 
 ## Add enrichers (optional)
 Enrichers add metadata automatically.
@@ -70,18 +75,12 @@ public class HttpEnricher : IAnalyticsEnricher
 }
 ```
 
-Register it:
-```
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddAnalyticsEnricher<HttpEnricher>();
-```
+## Add exporters (optional)
+Exporters decide where events go.
 
-## Add destinations (optional)
-Destinations decide where events go.
-
-Example: Console destination
+Example: Console exporter
 ```
-public class ConsoleAnalyticsDestination : IAnalyticsEventDestination
+public class ConsoleAnalyticsExporter : IAnalyticsExporter
 {
     public Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
     {
@@ -89,15 +88,4 @@ public class ConsoleAnalyticsDestination : IAnalyticsEventDestination
         return Task.CompletedTask;
     }
 }
-```
-
-Register it:
-```
-builder.Services.AddAnalyticsDestination<ConsoleAnalyticsDestination>();
-```
-
-## Correlation (optional)
-Add middleware to set correlation IDs:
-```
-app.UseMiddleware<HttpCorrelationMiddleware>();
 ```
