@@ -6,15 +6,10 @@ using System.Text.Json;
 
 namespace DfE.Analytics.Core.Consumer.Mvc.Analytics
 {
-    // The initial search -  did they search urn, town, did they get results back
     public record SchoolSearchData(string SearchTerm, int ResultCount) : IAnalyticsEventData;
-    // The interaction - are people actually using a filter
     public record FilterAppliedData(string FilterName, string SelectedValue, int ResultsAfterFilter) : IAnalyticsEventData;
-    // The drill-down - which schools did they click on
     public record SchoolDetailsViewedData(string Urn, string SchoolName, string Phase) : IAnalyticsEventData;
-    // The outcome - did they leave the service or go to a schools website
     public record ExternalWebsiteClickedData(string Urn, string DestinationUrl) : IAnalyticsEventData;
-    // The automatic - simple web request tracking for all requests to the service
     public record WebRequestEventData(string Path, string Method, int StatusCode, long DurationMs) : IAnalyticsEventData;
 
     // ENRICHER
@@ -143,7 +138,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Analytics
             await _next(context);
             sw.Stop();
 
-            AnalyticsEventEnvelope evt = new AnalyticsEventEnvelope(
+            AnalyticsEventEnvelope evt = new(
                 "web_request",
                 new WebRequestEventData(path, context.Request.Method, context.Response.StatusCode, sw.ElapsedMilliseconds)
             );

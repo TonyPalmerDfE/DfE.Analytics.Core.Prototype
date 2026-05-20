@@ -8,11 +8,11 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
 
     public class SchoolsController : Controller
     {
-        private readonly IAnalyticsClient _tracker;
+        private readonly IAnalyticsClient _client;
 
         public SchoolsController(IAnalyticsClient tracker)
         {
-            _tracker = tracker;
+            _client = tracker;
         }
 
         // -----------------------------
@@ -32,7 +32,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
                 .Where(s => s.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            await _tracker.TrackAsync(
+            await _client.TrackAsync(
                 new AnalyticsEventEnvelope("school_search_performed",
                     new SchoolSearchData(searchTerm, results.Count)
                 )
@@ -52,7 +52,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
                 .Where(s => s.Phase == selectedValue)
                 .ToList();
 
-            await _tracker.TrackAsync(
+            await _client.TrackAsync(
                 new AnalyticsEventEnvelope("school_filter_performed",
                     new FilterAppliedData(filterName, selectedValue, results.Count)
                 )
@@ -71,7 +71,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
             if (school == null)
                 return NotFound();
 
-            await _tracker.TrackAsync(
+            await _client.TrackAsync(
                 new AnalyticsEventEnvelope("school_details_viewed",
                     new SchoolDetailsViewedData(school.Urn, school.Name, school.Phase)
                 )
@@ -93,7 +93,7 @@ namespace DfE.Analytics.Core.Consumer.Mvc.Controllers
 
             var url = $"https://www.google.com/search?q={school.Name.Replace(" ", "+")}";
 
-            await _tracker.TrackAsync(
+            await _client.TrackAsync(
                 new AnalyticsEventEnvelope("external_website_clicked",
                     new ExternalWebsiteClickedData(school.Urn, url)
                 )

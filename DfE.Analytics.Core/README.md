@@ -1,91 +1,111 @@
-﻿# DfE Analytics Core
-A lightweight, framework‑agnostic library for emitting structured analytics events across DfE services.
+﻿## DfE Analytics Core - Architecture & event flow
+The below describes the proposed analytics pipeline, its components, and how data flows through the system. 
+The design is intentionally modular, allowing different dispatching and exporting options depending on the environment or scale of the application.
 
-## Overview
-The system is built around four key concepts:
-- <b>Analytics Events</b> — A named event with strongly typed data and optional metadata.
-- <b>Enrichers</b> — Components that add contextual information (e.g., correlation IDs) before an event is dispatched.
-- <b>Dispatchers</b> — Responsible for sending events to a background channel.
-- <b>Exporters</b> — Final destinations that process or forward events (e.g., console, BigQuery, Azure, Storage).
+### High‑Level architecture
+The pipeline is built around four core abstractions:
+- Analytics Client — entry point for tracking events
+- Enrichers — add contextual metadata
+- Dispatcher — hands events off to an asynchronous processing mechanism
+- Exporters — deliver events to final destinations.
 
-If defaults are enabled, events are written to a channel, then processed by a hosted background worker to avoid blocking application code.
 
-## Install
+Each component is replaceable, allowing the system to adapt to different hosting models, throughput requirements, and infrastructure.
+
+### Event flow (Step‑by‑Step)
+#### 1. Application creates an event
+The application constructs an `AnalyticsEventEnvelope` containing:
+- Event name
+- Strongly typed event data
+- Optional metadata
+
+#### 2. Event sent to AnalyticsClient
+ 
+`IAnalyticsClient.TrackAsync()` is called.
+
+#### 3. Enrichers add context
+All registered enrichers run in sequence, potentially adding:
+- Correlation ID
+- Environment metadata
+- User/session/request details
+- Any domain‑specific context
+
+#### 4. Dispatcher hands off the event
+The dispatcher’s responsibility is intentionally narrow:
+
+Accept the enriched event and forward it to an asynchronous processing mechanism.
+
+The mechanism is not prescribed. It could be:
+
+- an in‑memory queue
+- a bounded channel (default implementation)
+- a distributed message bus (Kafka, Service Bus, RabbitMQ)
+- a background job system
+- a streaming or ingestion API
+- a file or buffer writer
+
+The dispatcher does not process or export events — it only hands them off.
+
+#### 5. Worker or consumer processes events
+A worker (or equivalent consumer) retrieves events from the chosen dispatch mechanism.
+
+This could be:
+- a hosted background service (default)
+- a queue consumer
+- a cloud function
+- a batch processor
+
+The worker is responsible for invoking all registered exporters.
+
+#### 6. Exporters deliver the event
+Exporters are the final stage. They may:
+- write to console (default)
+- send to an HTTP endpoint
+- store in a database
+- publish to a message queue
+- forward to analytics platforms
+
+Multiple exporters can run in parallel, consuming the same event and delivering it to different destinations.
+
+#### Generic event flow diagram
 ```
-dotnet add package DfE.Analytics.Core
-```
-
-Register the core:
-```
-builder.Services.AddDfEAnalyticsCore();
-```
-
-Add the default channel-based dispatcher:
-```
-builder.Services.AddDfEAnalyticsDefaultDispatcher();
-```
-
-Add the default console exporter:
-```
-builder.Services.AddDfEAnalyticsDefaultExporter();
-```
-
-(Optional) Add your own custom enrichers or exporters:
-```
-services.AddAnalyticsEnricher<IAnalyticsEnricher, MyEnricher>();
-services.AddAnalyticsExporter<IAnalyticsExporter, MyExporter>();
-```
-
-
-## Usage
-
-1. Define your event data:
-```
-public record UserSignedInData(string UserId) : IAnalyticsEventData;
-```
-
-2. Create and track an event
-```
-var evt = new AnalyticsEventEnvelope("user_signed_in", new UserSignedInData("12345"))
-    .WithMetadata("Source", "web_application");
-
-await analyticsClient.TrackAsync(evt);
-```
-
-
-## Add enrichers (optional)
-Enrichers add metadata automatically.
-
-Example: HTTP enricher
-```
-public class HttpEnricher : IAnalyticsEnricher
-{
-    private readonly IHttpContextAccessor _http;
-
-    public HttpEnricher(IHttpContextAccessor http) => _http = http;
-
-    public void Enrich(AnalyticsEvent evt, AnalyticsCorrelationContext context)
-    {
-        var http = _http.HttpContext;
-        if (http == null) return;
-
-        evt.Metadata["http_method"] = http.Request.Method;
-        evt.Metadata["request_path"] = http.Request.Path;
-    }
-}
-```
-
-## Add exporters (optional)
-Exporters decide where events go.
-
-Example: Console exporter
-```
-public class ConsoleAnalyticsExporter : IAnalyticsExporter
-{
-    public Task TrackAsync(AnalyticsEvent evt, CancellationToken cancellationToken = default)
-    {
-        Console.WriteLine($"Event: {evt.EventName}");
-        return Task.CompletedTask;
-    }
-}
-```
+ ┌──────────────────────────┐
+ │   Application Code       │
+ │  (Creates EventEnvelope) │
+ └─────────────┬────────────┘
+               │ TrackAsync()
+               ▼
+ ┌──────────────────────────┐
+ │     AnalyticsClient      │
+ └─────────────┬────────────┘
+               │ EnrichAsync()
+               ▼
+ ┌──────────────────────────┐
+ │   Enrichers (N of them)  │
+ │ Add metadata, context    │
+ └─────────────┬────────────┘
+               │ DispatchAsync()
+               ▼
+ ┌──────────────────────────────────────────────┐
+ │               Dispatcher Layer               │
+ │  Forwards event to ANY async mechanism:      │
+ │   • In‑memory queue                          │
+ │   • Bounded channel (default)                │
+ │   • Message bus (Kafka, Service Bus, etc.)   │
+ │   • HTTP ingestion endpoint                  │
+ │   • File/stream writer                       │
+ └─────────────┬────────────────────────────────┘
+               │
+               ▼
+ ┌──────────────────────────┐
+ │   Worker / Consumer      │
+ │ Reads events from chosen │
+ │ dispatch mechanism       │
+ └─────────────┬────────────┘
+               │
+               ▼
+ ┌──────────────────────────┐
+ │   Exporters (1..N)       │
+ │ Console, API, Storage…   │
+ └──────────────────────────┘
+ ```
